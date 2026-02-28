@@ -1,6 +1,9 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { ExamPaper } from '../types';
+import { exportToTXT, exportToDOCX } from '../utils/exportUtils';
+// @ts-ignore
+import html2pdf from 'html2pdf.js';
 
 interface ExamPreviewProps {
   exam: ExamPaper;
@@ -8,233 +11,230 @@ interface ExamPreviewProps {
 }
 
 const ExamPreview: React.FC<ExamPreviewProps> = ({ exam, onBack }) => {
-  const [showAnswers, setShowAnswers] = useState(false);
+  const [mode, setMode] = useState<'question' | 'answer'>('question');
 
-  const shuffledMatchingOptions = useMemo(() => {
-    const map = new Map<string, string[]>();
-    exam.sections.forEach(section => {
-      section.questions.forEach(q => {
-        if (q.type === 'matching' && q.matchingPairs) {
-          const rights = q.matchingPairs.map(p => p.right);
-          for (let i = rights.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [rights[i], rights[j]] = [rights[j], rights[i]];
-          }
-          map.set(q.id, rights);
-        }
-      });
-    });
-    return map;
-  }, [exam]);
-
-  const handlePrint = () => window.print();
-
-  const getBorderClasses = () => {
-    switch (exam.borderStyle) {
-      case 'double': return 'border-[12px] border-double border-slate-900 m-10 p-16';
-      case 'dashed': return 'border-2 border-dashed border-slate-300 m-10 p-16';
-      case 'fancy': return 'border-[25px] border-slate-50 outline outline-1 outline-slate-200 m-10 p-20';
-      case 'none': return 'p-16';
-      default: return 'border-2 border-slate-900 m-10 p-16';
-    }
+  const handleExportPDF = () => {
+    const element = document.getElementById('exam-paper-content');
+    const opt = {
+      margin: 0.5,
+      filename: `${exam.subject}_${mode}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+    };
+    html2pdf().set(opt).from(element).save();
   };
 
   return (
-    <div className="max-w-6xl mx-auto pb-32 animate-in zoom-in-95 duration-500">
-      {/* CONTROL BAR */}
-      <div className="mb-12 flex flex-wrap items-center justify-between gap-8 no-print glass-panel p-6 rounded-[2.5rem] border-white/20">
-        <button 
-          onClick={onBack} 
-          className="px-8 py-4 text-slate-400 hover:text-cyan-400 font-black text-xs uppercase tracking-[0.3em] flex items-center gap-4 transition-all group"
-        >
-          <i className="fas fa-long-arrow-alt-left group-hover:-translate-x-2 transition-transform"></i> 
-          Vault Access
+    <div className="max-w-6xl mx-auto pb-32">
+      {/* CONTROLS */}
+      <div className="mb-10 flex flex-wrap gap-4 justify-between items-center no-print glass-panel p-6 rounded-[2.5rem]">
+        <button onClick={onBack} className="px-6 py-3 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-white transition">
+          <i className="fas fa-arrow-left mr-2"></i> Back to Vault
         </button>
-        <div className="flex gap-5">
+        
+        <div className="flex bg-white/5 p-1.5 rounded-2xl border border-white/10">
           <button 
-            onClick={() => setShowAnswers(!showAnswers)} 
-            className={`px-8 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all border-2 ${showAnswers ? 'bg-amber-500 border-amber-500 text-white shadow-xl shadow-amber-500/20' : 'bg-transparent border-white/10 text-slate-400 hover:border-white/30 hover:text-white'}`}
+            onClick={() => setMode('question')} 
+            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'question' ? 'bg-white text-slate-950 shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
           >
-             <i className={`fas ${showAnswers ? 'fa-fingerprint' : 'fa-lock-open'} mr-3`}></i>
-             {showAnswers ? 'Declassify Key' : 'Reveal Answer Matrix'}
+            Question Paper
           </button>
           <button 
-            onClick={handlePrint} 
-            className="neo-button px-10 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-widest shadow-2xl border border-white/20"
+            onClick={() => setMode('answer')} 
+            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'answer' ? 'bg-white text-slate-950 shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
           >
-            <i className="fas fa-print mr-3"></i>
-            Deploy Paper
+            Answer Key
           </button>
+        </div>
+
+        <div className="flex gap-2">
+            <button onClick={() => exportToDOCX(exam, mode)} className="px-4 py-3 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-blue-500 transition flex items-center gap-2" title="Export to DOCX">
+              <i className="fas fa-file-word"></i> <span className="hidden sm:inline">DOCX</span>
+            </button>
+            <button onClick={handleExportPDF} className="px-4 py-3 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-red-500 transition flex items-center gap-2" title="Export to PDF">
+              <i className="fas fa-file-pdf"></i> <span className="hidden sm:inline">PDF</span>
+            </button>
+             <button onClick={() => exportToTXT(exam, mode)} className="px-4 py-3 bg-slate-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-slate-500 transition flex items-center gap-2" title="Export to Text">
+              <i className="fas fa-file-alt"></i> <span className="hidden sm:inline">TXT</span>
+            </button>
+            <button onClick={() => window.print()} className="px-4 py-3 bg-cyan-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-cyan-400 transition flex items-center gap-2" title="Print">
+              <i className="fas fa-print"></i> <span className="hidden sm:inline">Print</span>
+            </button>
         </div>
       </div>
 
-      {/* THE PAPER STUDIO */}
-      <div className="bg-white/5 rounded-[4rem] p-1 shadow-inner no-print border border-white/5">
-        <div className={`bg-white text-slate-950 shadow-[0_50px_100px_rgba(0,0,0,0.8)] relative print:shadow-none print:m-0 print:border-none ${getBorderClasses()} min-h-[1400px]`}>
+      {/* PAPER BODY */}
+      <div id="exam-paper-content" className={`bg-white text-slate-900 p-16 shadow-2xl rounded-sm min-h-[1400px] border-slate-900 relative ${
+        exam.borderStyle === 'double' ? 'border-[6px] border-double' :
+        exam.borderStyle === 'dashed' ? 'border-4 border-dashed' :
+        exam.borderStyle === 'fancy' ? 'border-[12px] border-slate-900 outline outline-4 outline-offset-[-16px] outline-slate-200' :
+        exam.borderStyle === 'rounded' ? 'border-2 rounded-[2rem]' :
+        exam.borderStyle === 'heavy' ? 'border-[8px]' :
+        exam.borderStyle === 'groove' ? 'border-[8px] !border-slate-300' :
+        exam.borderStyle === 'dotted' ? 'border-4 border-dotted' :
+        exam.borderStyle === 'none' ? 'border-0' :
+        'border-2'
+      }`} style={exam.borderStyle === 'groove' ? { borderStyle: 'groove' } : {}}>
+        <header className="text-center border-b-4 border-slate-900 pb-10 mb-10 relative">
+          {exam.schoolLogoUrl && (
+            <div className="absolute top-0 left-0 w-24 h-24 no-print">
+              <img src={exam.schoolLogoUrl} alt="School Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+            </div>
+          )}
+          <h1 className="text-4xl font-black uppercase mb-2">{exam.instituteName}</h1>
+          <h2 className="text-xl font-bold text-slate-400 uppercase tracking-[0.3em]">
+            {exam.subject} - {exam.paperType === 'revision' ? 'Revision Guide' : (exam.paperType === 'question_bank' ? 'Question Bank' : (mode === 'answer' ? 'Answer Key' : 'Assessment'))}
+          </h2>
           
-          {/* HEADER BLOCK */}
-          <div className="text-center border-b-[4px] border-slate-950 pb-12 mb-12">
-            <div className="flex justify-between items-center mb-10 px-6">
-              <div className="w-32 h-32 flex items-center justify-center bg-slate-50 rounded-3xl overflow-hidden p-4 border border-slate-100 shadow-sm">
-                {exam.schoolLogoUrl ? (
-                  <img src={exam.schoolLogoUrl} className="max-h-full max-w-full object-contain" />
-                ) : (
-                  <i className="fas fa-university text-5xl text-slate-200"></i>
-                )}
+          {/* STUDENT INFO FIELDS */}
+          {exam.paperType !== 'question_bank' && (
+            <div className="mt-10 grid grid-cols-3 gap-8 border-y-2 border-slate-100 py-6">
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-black uppercase text-slate-400">Name:</span>
+                <div className="flex-1 border-b border-slate-300 h-6"></div>
               </div>
-              <div className="flex-1 px-10">
-                <h1 className="text-5xl font-black text-slate-950 uppercase tracking-tighter mb-4 leading-none">
-                  {exam.instituteName || "UEPG NEURAL INSTITUTE"}
-                </h1>
-                <p className="text-2xl font-bold text-slate-400 uppercase tracking-[0.4em]">{exam.title}</p>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-black uppercase text-slate-400">Roll No:</span>
+                <div className="flex-1 border-b border-slate-300 h-6"></div>
               </div>
-              <div className="w-32 h-32"></div>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-black uppercase text-slate-400">Section:</span>
+                <div className="flex-1 border-b border-slate-300 h-6"></div>
+              </div>
             </div>
+          )}
 
-            <div className="grid grid-cols-2 gap-y-6 text-base font-black text-slate-950 border-y-[2px] border-slate-100 py-8 px-10 bg-slate-50/50">
-               <div className="text-left flex items-center gap-3">SUBJECT: <span className="font-bold underline decoration-cyan-400 underline-offset-8">{exam.subject}</span></div>
-               <div className="text-right flex items-center justify-end gap-3">GRADE: <span className="font-bold underline decoration-rose-400 underline-offset-8">{exam.gradeLevel}</span></div>
-               <div className="text-left">TIME: <span className="font-bold text-slate-600">{exam.duration}</span></div>
-               <div className="text-right">MAX SCORE: <span className="font-bold text-slate-600">{exam.totalMarks}</span></div>
-            </div>
+          <div className="grid grid-cols-3 mt-8 text-[10px] font-black uppercase tracking-wider px-10">
+             <div className="text-left">
+               <div>Grade: {exam.gradeLevel}</div>
+               <div className="opacity-60 mt-1">{exam.board} • {exam.syllabus}</div>
+             </div>
+             <div className="text-center">Duration: {exam.duration}</div>
+             <div className="text-right">
+               {mode === 'answer' ? 'Teacher Reference' : (exam.paperType === 'revision' ? 'Study Matrix' : (exam.paperType === 'question_bank' ? 'Resource Bank' : `Max Marks: ${exam.totalMarks}`))}
+             </div>
+          </div>
+        </header>
 
-            <div className="mt-12 flex flex-wrap justify-between items-end gap-10 px-10 text-[11px] font-black text-slate-300 uppercase tracking-[0.4em]">
-               <div className="flex-1 border-b border-slate-200 pb-2">CANDIDATE: ....................................................</div>
-               <div className="w-48 border-b border-slate-200 pb-2">ID: ...................</div>
-               <div className="w-48 border-b border-slate-200 pb-2">SEC: ...................</div>
+        {exam.referenceImageUrl && mode === 'question' && (
+          <div className="mb-12 flex justify-center">
+            <div className="max-w-2xl border-2 border-slate-100 p-4 rounded-xl">
+              <img src={exam.referenceImageUrl} alt="Reference Diagram" className="w-full h-auto rounded-lg" referrerPolicy="no-referrer" />
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-4 text-center">Fig 1.1: Reference Material</p>
             </div>
           </div>
+        )}
 
-          {/* MAIN CONTENT */}
-          <div className="space-y-20 px-6">
-            
-            {exam.referenceImageUrl && (
-              <div className="text-center border-2 border-slate-100 p-10 rounded-[3rem] bg-slate-50/50">
-                 <p className="text-[10px] font-black uppercase text-slate-400 mb-6 tracking-[0.3em]">FIGURE DATA MATRIX 01-A</p>
-                 <img src={exam.referenceImageUrl} className="max-h-[400px] mx-auto object-contain rounded-2xl shadow-xl border border-white" />
-              </div>
-            )}
+        {/* GENERAL INSTRUCTIONS */}
+        {exam.generalInstructions && mode === 'question' && (
+          <div className="mb-12 p-8 border-2 border-slate-900 rounded-sm">
+            <h4 className="text-xs font-black uppercase tracking-widest mb-4 border-b border-slate-200 pb-2">General Instructions</h4>
+            <div className="text-sm font-medium text-slate-700 whitespace-pre-wrap leading-relaxed">
+              {exam.generalInstructions}
+            </div>
+          </div>
+        )}
 
-            {exam.generalInstructions && (
-              <div className="p-10 border-l-[8px] border-slate-950 bg-slate-50 text-base font-medium italic relative rounded-r-[2rem]">
-                <h4 className="font-black uppercase text-[11px] mb-6 tracking-[0.5em] text-slate-400">Essential Directives</h4>
-                <p className="whitespace-pre-line text-slate-800 leading-loose font-serif">{exam.generalInstructions}</p>
-              </div>
-            )}
-
-            <div className="space-y-20">
-              {exam.sections.map((section, sIdx) => (
-                <div key={section.id} className="break-inside-avoid">
-                  <div className="flex items-center gap-8 mb-10">
-                     <div className="bg-slate-950 text-white text-[11px] font-black w-14 h-14 flex items-center justify-center rounded-2xl shadow-xl">
-                       {String.fromCharCode(65 + sIdx)}
-                     </div>
-                     <h2 className="text-3xl font-black uppercase text-slate-950 tracking-tight flex-1 border-b-[3px] border-slate-950 pb-3">
-                       {section.title}
-                     </h2>
+        <div className="space-y-16">
+          {exam.sections.map((section, sIdx) => (
+            <div key={section.id}>
+              <h3 className="text-2xl font-black border-b-2 border-slate-900 pb-2 mb-8 uppercase tracking-tighter">
+                {exam.paperType === 'revision' ? `Module ${sIdx + 1}` : `Section ${String.fromCharCode(65 + sIdx)}`}: {section.title}
+              </h3>
+              
+              {section.summary && mode === 'question' && (
+                <div className="mb-10 p-8 bg-slate-50 border-2 border-slate-200 rounded-3xl">
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
+                    <i className="fas fa-lightbulb text-amber-400"></i> Key Concepts & Summary
                   </div>
-                  
-                  {section.instructions && (
-                    <div className="text-[11px] font-black text-slate-400 mb-10 flex items-start gap-3 italic uppercase tracking-widest leading-relaxed">
-                      <i className="fas fa-exclamation-circle mt-1 text-slate-950"></i>
-                      {section.instructions}
-                    </div>
-                  )}
+                  <div className="prose prose-slate max-w-none text-slate-700 font-medium leading-relaxed whitespace-pre-wrap">
+                    {section.summary}
+                  </div>
+                </div>
+              )}
 
-                  <div className="space-y-16">
-                    {section.questions.map((q, qIdx) => (
-                      <div key={q.id} className="relative group pl-2 break-inside-avoid">
-                        <div className="flex justify-between items-start">
-                           <div className="flex gap-6 flex-1">
-                              <span className="font-black text-slate-950 text-2xl">{qIdx + 1}.</span>
-                              <div className="flex-1">
-                                 
-                                 {(q.type === 'unseen_passage' || q.type === 'unseen_poem') && q.passageText && (
-                                   <div className="mb-10 p-10 border-2 border-slate-100 font-serif leading-loose text-xl text-justify text-slate-800 italic rounded-[2.5rem] bg-slate-50/50 shadow-inner">
-                                     {q.passageText.split('\n').map((l, i) => <p key={i} className="mb-6 last:mb-0">{l}</p>)}
-                                   </div>
-                                 )}
-
-                                 <p className="font-bold text-slate-950 text-xl leading-snug mb-6">{q.text}</p>
-                                 
-                                 {q.subQuestions && (
-                                   <div className="mt-8 ml-10 space-y-8">
-                                      {q.subQuestions.map((sq, si) => (
-                                        <div key={sq.id} className="flex justify-between items-start gap-6 border-b border-slate-100 pb-6 last:border-0">
-                                          <div className="flex gap-4">
-                                            <span className="font-black text-slate-400 text-base">({String.fromCharCode(97 + si)})</span>
-                                            <span className="text-slate-900 font-semibold text-lg">{sq.text}</span>
-                                          </div>
-                                          <span className="font-black text-slate-300 text-sm">[{sq.marks}]</span>
-                                        </div>
-                                      ))}
-                                   </div>
-                                 )}
-
-                                 {q.type === 'mcq' && q.options && (
-                                   <div className="grid grid-cols-2 mt-8 gap-8">
-                                     {q.options.map((o, oi) => (
-                                       <div key={oi} className="flex items-center gap-5 text-lg font-bold text-slate-800">
-                                         <span className="w-8 h-8 flex items-center justify-center rounded-xl border-2 border-slate-200 text-xs font-black text-slate-400">
-                                           {String.fromCharCode(65 + oi)}
-                                         </span>
-                                         <span>{o}</span>
-                                       </div>
-                                     ))}
-                                   </div>
-                                 )}
-
-                                 {q.type === 'matching' && q.matchingPairs && (
-                                   <div className="mt-10 grid grid-cols-2 gap-16 text-lg font-black bg-slate-50 p-10 rounded-[2.5rem] border border-slate-100">
-                                      <div className="space-y-6">
-                                        <div className="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em] mb-6">Taxonomy A</div>
-                                        {q.matchingPairs.map((p, pi) => <div key={pi} className="flex gap-4"><span className="text-blue-500">{pi+1}.</span> {p.left}</div>)}
-                                      </div>
-                                      <div className="space-y-6 border-l-[2px] border-slate-200 pl-16">
-                                        <div className="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em] mb-6">Taxonomy B</div>
-                                        {shuffledMatchingOptions.get(q.id)?.map((item, pi) => <div key={pi} className="flex gap-4"><span className="text-rose-500">{String.fromCharCode(65+pi)}.</span> {item}</div>)}
-                                      </div>
-                                   </div>
-                                 )}
-
-                                 {(q.type === 'short_answer' || q.type === 'essay') && !q.subQuestions && (
-                                   <div className="mt-10 space-y-6 opacity-20">
-                                      {[...Array(q.type === 'essay' ? 6 : 3)].map((_, i) => (
-                                        <div key={i} className="border-b-[2px] border-dotted border-slate-400 h-8"></div>
-                                      ))}
-                                   </div>
-                                 )}
-                              </div>
-                           </div>
-                           <div className="ml-10 font-black text-slate-300 text-sm tracking-tighter">[{q.marks} Pts]</div>
+              {section.instructions && mode === 'question' && (
+                <p className="text-xs font-bold text-slate-500 italic mb-8">Instructions: {section.instructions}</p>
+              )}
+              
+              <div className="space-y-12">
+                <div className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] mb-6 border-b border-slate-100 pb-2">
+                  {mode === 'answer' ? 'Solution Guide' : (exam.paperType === 'revision' ? 'Practice Application' : 'Questions')}
+                </div>
+                {section.questions.map((q, qIdx) => (
+                  <div key={q.id} className="relative">
+                    <div className="flex justify-between gap-6">
+                      <div className="flex-1">
+                        <span className="font-black mr-3">{qIdx + 1}.</span>
+                        <div className="inline">
+                          {q.passageText && mode === 'question' && (
+                            <div className="mb-8 p-8 border-2 border-slate-100 bg-slate-50 font-serif text-lg leading-relaxed italic rounded-2xl shadow-inner">
+                              <span className="block text-[10px] font-black uppercase text-slate-400 mb-4 tracking-widest">
+                                {exam.synthesisMode === 'applied' ? 'CASE SCENARIO' : 'READING PASSAGE'}
+                              </span>
+                              {q.passageText}
+                            </div>
+                          )}
+                          <span className="font-bold text-lg">{q.text}</span>
                         </div>
 
-                        {showAnswers && (
-                          <div className="mt-8 ml-16 p-8 bg-blue-50 border-2 border-blue-100 rounded-[2.5rem] text-sm text-blue-950 no-print animate-in zoom-in-95 duration-200">
-                            <div className="flex items-center gap-3 font-black uppercase tracking-[0.2em] mb-4 text-blue-600">
-                              <i className="fas fa-terminal"></i> Neural Solution Matrix
-                            </div>
-                            <div className="font-bold whitespace-pre-line text-lg">
-                              {q.type === 'matching' ? q.matchingPairs?.map(p => `${p.left} → ${p.right}`).join('\n') : q.correctAnswer}
-                              {q.subQuestions?.map((sq, i) => <div key={i} className="mt-2 text-base">({String.fromCharCode(97+i)}) {sq.correctAnswer}</div>)}
-                            </div>
+                        {q.options && (
+                          <div className="grid grid-cols-2 mt-6 gap-4 pl-8">
+                             {q.options.map((o, oi) => (
+                               <div key={oi} className="flex gap-4 items-center">
+                                 <span className="w-6 h-6 rounded-full border border-slate-300 flex items-center justify-center text-[10px] font-black">{String.fromCharCode(65+oi)}</span>
+                                 <span className={`font-medium ${mode === 'answer' && q.correctAnswer.includes(String.fromCharCode(65+oi)) ? 'text-emerald-600 font-black' : ''}`}>{o}</span>
+                               </div>
+                             ))}
+                          </div>
+                        )}
+
+                        {q.subQuestions && (
+                          <div className="mt-8 ml-8 space-y-6">
+                            {q.subQuestions.map((sq, si) => (
+                              <div key={sq.id} className="flex justify-between items-start gap-4">
+                                <div>
+                                  <span className="font-black text-slate-400 mr-2">({String.fromCharCode(97+si)})</span>
+                                  <span className="font-semibold">{sq.text}</span>
+                                  {mode === 'answer' && (
+                                    <div className="mt-2 text-xs font-black text-emerald-600">
+                                      Ans: {sq.correctAnswer}
+                                    </div>
+                                  )}
+                                </div>
+                                <span className="text-[10px] font-black text-slate-300">[{sq.marks}]</span>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+                      <span className="text-xs font-black text-slate-300 whitespace-nowrap">[{q.marks} marks]</span>
+                    </div>
 
-          {/* FOOTER BLOCK */}
-          <div className="mt-32 pt-12 border-t-[5px] border-slate-950 text-center">
-             <div className="inline-block px-12 py-3 border-4 border-slate-950 text-sm font-black uppercase text-slate-950 tracking-[0.8em] rounded-full">
-               END OF EVALUATION
-             </div>
-             <p className="mt-6 text-[10px] text-slate-300 font-bold uppercase tracking-[0.5em]">Neural Verification ID: {exam.id.toUpperCase()}</p>
-          </div>
+                    {mode === 'answer' && (
+                      <div className="mt-6 ml-10 p-6 bg-slate-50 border-l-4 border-slate-900 rounded-r-2xl animate-in zoom-in-95">
+                         <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Teacher Reference</div>
+                         <p className="font-black text-slate-800 mb-2">Correct Answer: {q.correctAnswer}</p>
+                         {q.solutionLogic && (
+                           <div className="mt-4 pt-4 border-t border-slate-200">
+                             <span className="text-[9px] font-black uppercase text-slate-400 block mb-1">Logic/Reasoning:</span>
+                             <p className="text-xs italic text-slate-600 leading-relaxed">{q.solutionLogic}</p>
+                           </div>
+                         )}
+                         {q.markingRubric && (
+                           <div className="mt-4 pt-4 border-t border-slate-200">
+                             <span className="text-[9px] font-black uppercase text-slate-400 block mb-1">Marking Rubric:</span>
+                             <p className="text-xs text-slate-500 italic">{q.markingRubric}</p>
+                           </div>
+                         )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

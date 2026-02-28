@@ -18,6 +18,12 @@ const SUBJECT_COLORS: Record<string, { bg: string, text: string, glow: string }>
   "COMPUTER": { bg: "bg-slate-200", text: "text-slate-700", glow: "shadow-slate-500/20" }
 };
 
+const PAPER_TYPE_STYLES: Record<string, { label: string, classes: string }> = {
+  'exam': { label: 'Exam', classes: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
+  'revision': { label: 'Revision', classes: 'bg-rose-500/20 text-rose-400 border-rose-500/30' },
+  'question_bank': { label: 'Question Bank', classes: 'bg-amber-500/20 text-amber-400 border-amber-500/30' }
+};
+
 const HistoryList: React.FC<HistoryListProps> = ({ exams, onSelect, onDelete }) => {
   if (exams.length === 0) {
     return (
@@ -38,6 +44,7 @@ const HistoryList: React.FC<HistoryListProps> = ({ exams, onSelect, onDelete }) 
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
       {exams.map(exam => {
         const colors = SUBJECT_COLORS[exam.subject] || { bg: "bg-slate-100", text: "text-slate-700", glow: "shadow-slate-500/10" };
+        const paperTypeStyle = PAPER_TYPE_STYLES[exam.paperType] || PAPER_TYPE_STYLES['exam'];
         
         return (
           <div 
@@ -48,9 +55,14 @@ const HistoryList: React.FC<HistoryListProps> = ({ exams, onSelect, onDelete }) 
             <div className={`absolute top-0 right-0 w-32 h-32 ${colors.bg} opacity-20 blur-[60px] -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700`}></div>
             
             <div className="flex justify-between items-start mb-6 relative z-10">
-              <span className={`px-4 py-1.5 ${colors.bg} ${colors.text} text-[10px] font-black uppercase rounded-full tracking-widest border border-white/50`}>
-                {exam.subject}
-              </span>
+              <div className="flex gap-2 flex-wrap">
+                <span className={`px-4 py-1.5 ${colors.bg} ${colors.text} text-[10px] font-black uppercase rounded-full tracking-widest border border-white/50`}>
+                  {exam.subject}
+                </span>
+                <span className={`px-4 py-1.5 ${paperTypeStyle.classes} text-[10px] font-black uppercase rounded-full tracking-widest border`}>
+                  {paperTypeStyle.label}
+                </span>
+              </div>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
